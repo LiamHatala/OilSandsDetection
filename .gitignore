@@ -3,3 +3,5 @@
   chkpts/
   models/
   best_mdl_wts.pt
+  train/bestModels/
+  venv
