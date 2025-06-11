@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_next_img(idx):
-    cap = cv2.VideoCapture("assets/C39-T3_CRUSHER_HOPPER_2025-01-10_15_07_25_696.mp4")
+    cap = cv2.VideoCapture("assets/crusher.mp4")
     tot_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     cap.set(cv2.CAP_PROP_POS_FRAMES, (idx * 30) % tot_frames + 1)
     ret, frame = cap.read()
