@@ -317,6 +317,7 @@ state_dict = init_df()
 
 def init_value_setter_store():
     # Initialize store data
+    
     state_dict = init_df()
     return state_dict
 
@@ -747,4 +748,4 @@ def handle_segmentor_output(out, coords):
 # NOTE: need threaded=True as getting the model output is time intensive
 # to keep the app reactive enough, other callbacks should still handle events
 # and threads helps with that.
-app.run(debug=True, port=8050, threaded=True)
+app.run(debug=True, port=8051, threaded=True)
