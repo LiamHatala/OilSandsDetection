@@ -34,6 +34,7 @@ server = app.server
 
 APP_PATH = str(pathlib.Path(__file__).parent.resolve())
 df = pd.read_csv(os.path.join(APP_PATH, os.path.join("data", "spc_data.csv")))
+# TODO : add confidence level to the params ie the csv
 params = list(df)
 
 max_length = len(df)
@@ -174,8 +175,11 @@ def build_barchart_panel():
         children=[dcc.Graph(id="bar-chart-live-graph", figure=build_bar_figure())],
     )
 
-
+# TODO : check if the yaxis has % symbol using ticksuffix
 def build_chart_panel():
+    """
+    builds the control chart panel with two line charts for Level and Confidence.
+    """
     return html.Div(
         id="control-chart-container",
         className="twelve columns",
@@ -192,6 +196,20 @@ def build_chart_panel():
                                 "mode": "lines+markers",
                                 "name": params[1],
                             }
+                            # {
+                            #     "x": [],
+                            #     "y": [],
+                            #     "mode": "lines+markers",
+                            #     "name": "Level",  # First line chart for Level
+                            #     "line": {"color": "#1f77b4"} 
+                            # },
+                            # {
+                            #     "x": [],
+                            #     "y": [],
+                            #     "mode": "lines+markers",
+                            #     "name": "Confidence", # Second line chart for Confidence
+                            #     "line": {"color": "#ff7f0e"} 
+                            # },
                         ],
                         "layout": {
                             "paper_bgcolor": "rgba(0,0,0,0)",
@@ -216,6 +234,9 @@ def generate_section_banner(title):
 
 
 def build_top_panel(stopped_interval):
+    """
+    Build the top panel of the dashboard, which includes a metrics summary section.
+    """
     return html.Div(
         id="top-section-container",
         className="row",
@@ -231,8 +252,10 @@ def build_top_panel(stopped_interval):
         ],
     )
 
-
 def build_video_feed():
+    """
+    Build the video feed component for the dashboard.
+    """
     event_spec = {"event": "click", "props": ["offsetX", "offsetY"]}
     return html.Div(
         id="video-container",
@@ -707,7 +730,7 @@ def on_click_top_left(n_clicks):
 
 
 @app.callback(
-    Output("roi-selection-mode", "data"),
+    Output("roi-selection-mode", "data", allow_duplicate=True),
     Input("roi-bot-right", "n_clicks"),
     prevent_initial_call=True,
 )
