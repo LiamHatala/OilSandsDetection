@@ -83,7 +83,11 @@ def get_next_img(idx):
 
 
 # ##################### UI Elements #####################
+
 def build_banner():
+    """
+    Build the banner UI component.
+    """
     return html.Div(
         id="banner",
         className="banner",
@@ -91,7 +95,7 @@ def build_banner():
             html.Div(
                 id="banner-text",
                 children=[
-                    html.H5("Manufacturing SPC Dashboard"),
+                    html.H5("Oil Sand Monitoring Dashboard"),
                     html.H6("Process Control and Exception Reporting"),
                 ],
             ),
@@ -100,6 +104,9 @@ def build_banner():
 
 
 def build_tabs():
+    """
+    Build the tabs UI component.
+    """
     return html.Div(
         id="tabs",
         className="tabs",
@@ -123,12 +130,33 @@ def build_tabs():
 
 
 def build_bar_figure(values=None):
+    """
+    Build the bar chart figure for the dashboard.
+    """
     labels = ["Level", "Confidence"]
     values = [45, 88] if not values else values
 
-    fig = go.Figure(data=[go.Bar(x=labels, y=values)])
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=labels,
+                y=values,
+                text=[f"{v:.1f}%" for v in values], # Format text with one decimal place and %
+                textposition="outside", # Position text outside (above) the bar
+                # Optional: customize text appearance
+                textfont=dict(
+                    color="white", # Text color for dark theme
+                    size=16 # Adjust text size as needed
+                ),
+                marker_color=['#1f77b4', '#ff7f0e'] 
+            )
+        ]
+    )
     fig.update_layout(
-        yaxis=dict(range=[0, 100]),
+        yaxis=dict(
+            range=[0, 100],
+            ticksuffix="%"
+        ),
         margin=dict(l=0, r=0, b=0, t=0),
         autosize=True,
         template="plotly_dark",
@@ -138,6 +166,9 @@ def build_bar_figure(values=None):
 
 
 def build_barchart_panel():
+    """
+    Build the bar chart panel for the dashboard.
+    """
     return html.Div(
         id="bar-chart-container",
         children=[dcc.Graph(id="bar-chart-live-graph", figure=build_bar_figure())],
@@ -169,7 +200,7 @@ def build_chart_panel():
                                 showline=False, showgrid=False, zeroline=False
                             ),
                             "yaxis": dict(
-                                showgrid=False, showline=False, zeroline=False
+                                showgrid=False, showline=False, zeroline=False, ticksuffix="%"
                             ),
                             "autosize": True,
                         },
@@ -365,12 +396,7 @@ app.layout = dmc.MantineProvider(
 
 
 # ##################### Callbacks #####################
-# @server.route("/static/C39-T3_CRUSHER_HOPPER_2025-01-10_15_07_25_696.mp4")
-# def serve_static(path):
-#     root_dir = os.getcwd()
-#     return flask.send_from_directory(
-#         "../C39-T3_CRUSHER_HOPPER_2025-01-10_15_07_25_696.mp4", path
-#     )
+
 
 
 @app.callback(
