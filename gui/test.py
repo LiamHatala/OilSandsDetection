@@ -448,85 +448,81 @@ def render_tab_content(tab_switch, stopped_interval):
         stopped_interval,
     )
 
-def generate_graph(interval, specs_dict, col, queue_data): # 'col' parameter might become less relevant if showing both
-    # ... (existing code for stats, ucl, lcl, etc. - you might want to keep it if you still plan to use SPC limits for one of the lines, or simplify if not)
+def generate_graph(interval, specs_dict, col, queue_data):
+    # Determine the time 30 minutes ago
+    time_limit = datetime.datetime.now() - datetime.timedelta(minutes=30)
 
-    # Instead of just one x_array and y_array, you'll need two sets
-    # The queues are already global, so you can access them directly.
-    # Ensure level_queue, qual_queue, and date_queue are being populated correctly.
+    # Filter the queues to only include data from the last 30 minutes
+    filtered_level_x_array = []
+    filtered_level_y_array = []
+    filtered_qual_x_array = []
+    filtered_qual_y_array = []
 
-    # Data for Level
-    level_x_array = list(date_queue)
-    level_y_array = list(level_queue)
-
-    # Data for Confidence
-    qual_x_array = list(date_queue) # Dates will be the same
-    qual_y_array = list(qual_queue)
+    # Iterate through the global queues and add only recent data
+    # Assuming all queues have the same length and corresponding indices
+    for i in range(len(date_queue)):
+        if date_queue[i] >= time_limit:
+            filtered_level_x_array.append(date_queue[i])
+            filtered_level_y_array.append(level_queue[i])
+            filtered_qual_x_array.append(date_queue[i])
+            filtered_qual_y_array.append(qual_queue[i])
 
     fig = {
         "data": [
             {
-                "x": level_x_array,
-                "y": level_y_array,
+                "x": filtered_level_x_array,
+                "y": filtered_level_y_array,
                 "mode": "lines+markers",
-                "name": "Level", # Explicitly set name
-                "line": {"color": "#1f77b4"}, # As per your build_chart_panel
+                "name": "Level",
+                "line": {"color": "#1f77b4"},
             },
             {
-                "x": qual_x_array,
-                "y": qual_y_array,
+                "x": filtered_qual_x_array,
+                "y": filtered_qual_y_array,
                 "mode": "lines+markers",
-                "name": "Confidence", # Explicitly set name
-                "line": {"color": "#ff7f0e"}, # As per your build_chart_panel
+                "name": "Confidence",
+                "line": {"color": "#ff7f0e"},
             },
-            # You might need to adjust or remove the 'ooc_trace' if it's only meant for one specific parameter
-            # If you want OOC for both, you'd need logic to determine OOC points for each.
-            # For simplicity, I'll remove it from this example, but you can reintegrate as needed.
-            # ooc_trace,
         ]
     }
-
-    len_figure = len(fig["data"][0]["x"]) # Still valid as both lists should have same length
 
     fig["layout"] = dict(
         margin=dict(t=40),
         hovermode="closest",
-        uirevision=col, # Keep uirevision if you want to preserve zoom/pan
+        uirevision=col,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         legend={"font": {"color": "darkgray"}, "orientation": "h"},
         font={"color": "darkgray"},
         showlegend=True,
         xaxis={
-            "title": "Time", # More appropriate title for datetime x-axis
+            "title": "Time",
             "tickformat": "%H:%M:%S",
             "titlefont": {"color": "darkgray"},
             "showgrid": False,
             "showline": False,
             "zeroline": False,
-            "autorange": True, # Changed to True for dynamic data
+            "autorange": True,
+            # Set fixed range for X-axis to display only last 30 minutes
+            "range": [time_limit.strftime('%Y-%m-%d %H:%M:%S'), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
         },
         yaxis={
-            "title": "Value", # More generic title since it's two values
+            "title": "Value",
             "showgrid": False,
             "showline": False,
             "zeroline": False,
             "titlefont": {"color": "darkgray"},
-            "range": [0, 100], # Range should still be 0-100%
-            "ticksuffix": "%" # Add suffix for percentage
+            "range": [0, 100],
+            "ticksuffix": "%"
         },
-        # Remove annotations and shapes for SPC limits if you're plotting generic Level/Confidence.
-        # If you want limits, you'd need to calculate them dynamically or for each line.
-        # annotations=[ ... ],
-        # shapes=[ ... ],
-        xaxis2={ # This secondary axis might not be needed if only two lines
+        xaxis2={
             "title": "Count",
             "titlefont": {"color": "darkgray"},
             "tickformat": "%H:%M:%S",
             "showgrid": False,
             "autorange": "max"
         },
-        yaxis2={ # This secondary axis might not be needed if only two lines
+        yaxis2={
             "anchor": "free",
             "overlaying": "y",
             "side": "right",
