@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 def get_next_img(idx):
     cap = cv2.VideoCapture("assets/crusher.mp4")
     tot_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, (idx * 30) % tot_frames + 1)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, (idx * 30) % tot_frames + 1) # this sets the frame position to the next frame based on the interval
     ret, frame = cap.read()
     if ret:
         url = array_to_data_url(np.asarray(frame))
@@ -175,7 +175,6 @@ def build_barchart_panel():
         children=[dcc.Graph(id="bar-chart-live-graph", figure=build_bar_figure())],
     )
 
-# TODO : check if the yaxis has % symbol using ticksuffix
 def build_chart_panel():
     """
     builds the control chart panel with two line charts for Level and Confidence.
@@ -190,26 +189,26 @@ def build_chart_panel():
                 figure=go.Figure(
                     {
                         "data": [
+                            # {
+                            #     "x": [],
+                            #     "y": [],
+                            #     "mode": "lines+markers",
+                            #     "name": params[1],
+                            # }
                             {
                                 "x": [],
                                 "y": [],
                                 "mode": "lines+markers",
-                                "name": params[1],
-                            }
-                            # {
-                            #     "x": [],
-                            #     "y": [],
-                            #     "mode": "lines+markers",
-                            #     "name": "Level",  # First line chart for Level
-                            #     "line": {"color": "#1f77b4"} 
-                            # },
-                            # {
-                            #     "x": [],
-                            #     "y": [],
-                            #     "mode": "lines+markers",
-                            #     "name": "Confidence", # Second line chart for Confidence
-                            #     "line": {"color": "#ff7f0e"} 
-                            # },
+                                "name": "Level",  # First line chart for Level
+                                "line": {"color": "#1f77b4"} 
+                            },
+                            {
+                                "x": [],
+                                "y": [],
+                                "mode": "lines+markers",
+                                "name": "Confidence", # Second line chart for Confidence
+                                "line": {"color": "#ff7f0e"} 
+                            },
                         ],
                         "layout": {
                             "paper_bgcolor": "rgba(0,0,0,0)",
@@ -449,187 +448,85 @@ def render_tab_content(tab_switch, stopped_interval):
         stopped_interval,
     )
 
+def generate_graph(interval, specs_dict, col, queue_data): # 'col' parameter might become less relevant if showing both
+    # ... (existing code for stats, ucl, lcl, etc. - you might want to keep it if you still plan to use SPC limits for one of the lines, or simplify if not)
 
-def generate_graph(interval, specs_dict, col, queue_data):
-    stats = state_dict[col]
-    col_data = stats["data"]
-    mean = stats["mean"]
-    ucl = specs_dict[col]["ucl"]
-    lcl = specs_dict[col]["lcl"]
-    usl = specs_dict[col]["usl"]
-    lsl = specs_dict[col]["lsl"]
+    # Instead of just one x_array and y_array, you'll need two sets
+    # The queues are already global, so you can access them directly.
+    # Ensure level_queue, qual_queue, and date_queue are being populated correctly.
 
-    if queue_data is None:
-        x_array = []
-        y_array = []
-    else:
-        x_array = list(date_queue)
-        y_array = list(level_queue)
+    # Data for Level
+    level_x_array = list(date_queue)
+    level_y_array = list(level_queue)
 
-    total_count = 0
-
-    if interval > max_length:
-        total_count = max_length - 1
-    elif interval > 0:
-        total_count = interval
-
-    ooc_trace = {
-        "x": x_array,
-        "y": y_array,
-        "name": "Out of Control",
-        "mode": "markers",
-        "marker": dict(color="rgba(210, 77, 87, 0.7)", symbol="square", size=11),
-    }
+    # Data for Confidence
+    qual_x_array = list(date_queue) # Dates will be the same
+    qual_y_array = list(qual_queue)
 
     fig = {
         "data": [
             {
-                "x": x_array,
-                "y": y_array,
+                "x": level_x_array,
+                "y": level_y_array,
                 "mode": "lines+markers",
-                "name": col,
-                "line": {"color": "#f4d44d"},
+                "name": "Level", # Explicitly set name
+                "line": {"color": "#1f77b4"}, # As per your build_chart_panel
             },
-            ooc_trace,
-            # histo_trace,
+            {
+                "x": qual_x_array,
+                "y": qual_y_array,
+                "mode": "lines+markers",
+                "name": "Confidence", # Explicitly set name
+                "line": {"color": "#ff7f0e"}, # As per your build_chart_panel
+            },
+            # You might need to adjust or remove the 'ooc_trace' if it's only meant for one specific parameter
+            # If you want OOC for both, you'd need logic to determine OOC points for each.
+            # For simplicity, I'll remove it from this example, but you can reintegrate as needed.
+            # ooc_trace,
         ]
     }
 
-    len_figure = len(fig["data"][0]["x"])
+    len_figure = len(fig["data"][0]["x"]) # Still valid as both lists should have same length
 
     fig["layout"] = dict(
         margin=dict(t=40),
         hovermode="closest",
-        uirevision=col,
+        uirevision=col, # Keep uirevision if you want to preserve zoom/pan
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         legend={"font": {"color": "darkgray"}, "orientation": "h"},
         font={"color": "darkgray"},
         showlegend=True,
         xaxis={
-            "title": "Batch Number",
+            "title": "Time", # More appropriate title for datetime x-axis
             "tickformat": "%H:%M:%S",
             "titlefont": {"color": "darkgray"},
             "showgrid": False,
             "showline": False,
             "zeroline": False,
-            "autorange": "max",
+            "autorange": True, # Changed to True for dynamic data
         },
         yaxis={
-            "title": col,
+            "title": "Value", # More generic title since it's two values
             "showgrid": False,
             "showline": False,
             "zeroline": False,
             "titlefont": {"color": "darkgray"},
-            "range": [0, 100]
+            "range": [0, 100], # Range should still be 0-100%
+            "ticksuffix": "%" # Add suffix for percentage
         },
-        # annotations=[
-        #     {
-        #         "x": 0.75,
-        #         "y": lcl,
-        #         "xref": "paper",
-        #         "yref": "y",
-        #         "text": "LCL:" + str(round(lcl, 3)),
-        #         "showarrow": False,
-        #         "font": {"color": "white"},
-        #     },
-        #     {
-        #         "x": 0.75,
-        #         "y": ucl,
-        #         "xref": "paper",
-        #         "yref": "y",
-        #         "text": "UCL: " + str(round(ucl, 3)),
-        #         "showarrow": False,
-        #         "font": {"color": "white"},
-        #     },
-        #     {
-        #         "x": 0.75,
-        #         "y": usl,
-        #         "xref": "paper",
-        #         "yref": "y",
-        #         "text": "USL: " + str(round(usl, 3)),
-        #         "showarrow": False,
-        #         "font": {"color": "white"},
-        #     },
-        #     {
-        #         "x": 0.75,
-        #         "y": lsl,
-        #         "xref": "paper",
-        #         "yref": "y",
-        #         "text": "LSL: " + str(round(lsl, 3)),
-        #         "showarrow": False,
-        #         "font": {"color": "white"},
-        #     },
-        #     {
-        #         "x": 0.75,
-        #         "y": mean,
-        #         "xref": "paper",
-        #         "yref": "y",
-        #         "text": "Targeted mean: " + str(round(mean, 3)),
-        #         "showarrow": False,
-        #         "font": {"color": "white"},
-        #     },
-        # ],
-        # shapes=[
-        #     {
-        #         "type": "line",
-        #         "xref": "x",
-        #         "yref": "y",
-        #         "x0": 1,
-        #         "y0": usl,
-        #         "x1": len_figure + 1,
-        #         "y1": usl,
-        #         "line": {"color": "#91dfd2", "width": 1, "dash": "dot"},
-        #     },
-        #     {
-        #         "type": "line",
-        #         "xref": "x",
-        #         "yref": "y",
-        #         "x0": 1,
-        #         "y0": lsl,
-        #         "x1": len_figure + 1,
-        #         "y1": lsl,
-        #         "line": {"color": "#91dfd2", "width": 1, "dash": "dot"},
-        #     },
-        #     {
-        #         "type": "line",
-        #         "xref": "x",
-        #         "yref": "y",
-        #         "x0": 1,
-        #         "y0": ucl,
-        #         "x1": len_figure + 1,
-        #         "y1": ucl,
-        #         "line": {"color": "rgb(255,127,80)", "width": 1, "dash": "dot"},
-        #     },
-        #     {
-        #         "type": "line",
-        #         "xref": "x",
-        #         "yref": "y",
-        #         "x0": 1,
-        #         "y0": mean,
-        #         "x1": len_figure + 1,
-        #         "y1": mean,
-        #         "line": {"color": "rgb(255,127,80)", "width": 2},
-        #     },
-        #     {
-        #         "type": "line",
-        #         "xref": "x",
-        #         "yref": "y",
-        #         "x0": 1,
-        #         "y0": lcl,
-        #         "x1": len_figure + 1,
-        #         "y1": lcl,
-        #         "line": {"color": "rgb(255,127,80)", "width": 1, "dash": "dot"},
-        #     },
-        # ],
-        xaxis2={
+        # Remove annotations and shapes for SPC limits if you're plotting generic Level/Confidence.
+        # If you want limits, you'd need to calculate them dynamically or for each line.
+        # annotations=[ ... ],
+        # shapes=[ ... ],
+        xaxis2={ # This secondary axis might not be needed if only two lines
             "title": "Count",
             "titlefont": {"color": "darkgray"},
             "tickformat": "%H:%M:%S",
             "showgrid": False,
             "autorange": "max"
         },
-        yaxis2={
+        yaxis2={ # This secondary axis might not be needed if only two lines
             "anchor": "free",
             "overlaying": "y",
             "side": "right",
@@ -637,11 +534,9 @@ def generate_graph(interval, specs_dict, col, queue_data):
             "titlefont": {"color": "darkgray"},
             "range": [0, 100]
         },
-        
     )
 
     return fig
-
 
 #  ======= button to choose/update figure based on click ============
 @app.callback(
@@ -743,7 +638,7 @@ def on_click_bot_right(n_clicks):
     Input("img-interval-component", "n_intervals"),
     State("point-canvas", "src"),
 )
-def update_bar_plot(n_int, img_url):
+def get_model_ouput(n_int, img_url):
     if img_url:
         _, encoded = img_url.split(",", 1)
         img_bytes = base64.b64decode(encoded)
@@ -778,12 +673,15 @@ def handle_segmentor_output(out, coords):
         x, y, w, h = 0, 0, out.shape[0], out.shape[1]
 
     predicted_level, lvl_top, lvl_bot = get_level(out[y : y + h, x : x + w])
+    
     predicted_level = (h - predicted_level) * 100 / h
+    print(f"Predicted level: {predicted_level}, Top: {lvl_top}, Bottom: {lvl_bot}")
 
     confidence = get_conf(out[y : y + h, x : x + w])
     lvl_top = np.clip(lvl_top, y, y + h)
     lvl_bot = np.clip(lvl_bot, y, y + h)
     confidence = 1 / (1e-5 + np.mean(confidence[lvl_top:lvl_bot]))
+    print(f"Confidence: {confidence}")
     # clip with softmax
     confidence = np.clip(confidence, 0, 100)
 
@@ -797,4 +695,4 @@ def handle_segmentor_output(out, coords):
 # NOTE: need threaded=True as getting the model output is time intensive
 # to keep the app reactive enough, other callbacks should still handle events
 # and threads helps with that.
-app.run(debug=True, port=8051, threaded=True)
+app.run(debug=True, port=8050, threaded=True)
