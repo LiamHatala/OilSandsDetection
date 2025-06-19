@@ -48,7 +48,7 @@ Here's an overview of the main directories and their purpose:
 ### Dataset Preparation
 
 **Data Source:**
-- The dataset used for training and evaluation can be obtained from [Link to dataset or description of how to access it].
+- The dataset used for training and evaluation can be obtained from Syncrude.
 - Alternatively, if you have your own dataset, ensure it is in a compatible format. Images should be in standard formats (e.g., JPG, PNG), and corresponding masks should be grayscale images where pixel values represent class labels.
 
 **Directory Structure:**
