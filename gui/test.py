@@ -47,19 +47,15 @@ suffix_ooc_n = "_OOC_number"
 suffix_ooc_g = "_OOC_graph"
 suffix_indicator = "_indicator"
 
-model_pth = "../best_mdl_wts.pt"
-add_safe_globals([OptimizedModule])
-model = torch.load(model_pth, weights_only=False)
+
+model = None
 device = "cuda"
-model = model.to(device)
-model.eval()
 transform = transforms.Compose(
-    [
+            [
         transforms.Resize((720, 1280)),
         transforms.ToTensor(),
-    ]
+            ]
 )
-
 # TODO: move to persistent store
 level_queue = deque(maxlen=100)
 qual_queue = deque(maxlen=100)
@@ -71,7 +67,7 @@ logger = logging.getLogger(__name__)
 def get_next_img(idx):
     cap = cv2.VideoCapture("assets/crusher.mp4")
     tot_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, (idx * 30) % tot_frames + 1) # this sets the frame position to the next frame based on the interval
+    cap.set(cv2.CAP_PROP_POS_FRAMES, (idx * 1) % tot_frames + 1) # this sets the frame position to the next frame based on the interval
     ret, frame = cap.read()
     if ret:
         url = array_to_data_url(np.asarray(frame))
@@ -81,7 +77,18 @@ def get_next_img(idx):
 
     cap.release()
     return url
+def load_model_if_not_loaded():
+    global model # Declare intent to modify global 'model'
+    if model is None:
+        print("Loading model for the first time...")
+        add_safe_globals([OptimizedModule]) # Keep this where torch.load is used
+        model_path = "../best_mdl_wts.pt" # Or pass it in
+        model = torch.load(model_path, weights_only=False)
+        model = model.to(device)
+        model.eval()
 
+        print("Model loaded.")
+    return model, transform # Return model and transform
 
 # ##################### UI Elements #####################
 
@@ -406,7 +413,7 @@ app.layout = dmc.MantineProvider(
             dcc.Store(id="value-setter-store", data=init_value_setter_store()),
             dcc.Store(id="n-interval-stage", data=50),
             # NOTE: donot change the local storage flag otherwise the js callbacks will fail
-            dcc.Store(id="roi-coords-store", storage_type="local"),
+            dcc.Store(id="roi-coords-store", storage_type="local", data =[{"x": 0, "y": 0}, {"x": 1500, "y": 720}] ),
             dcc.Store(id="roi-selection-mode", storage_type="local"),
             dcc.Store(id="img-url-store"),
             dcc.Store(id="model_output"),
@@ -635,6 +642,7 @@ def on_click_bot_right(n_clicks):
     State("point-canvas", "src"),
 )
 def get_model_ouput(n_int, img_url):
+    model, transform = load_model_if_not_loaded()
     if img_url:
         _, encoded = img_url.split(",", 1)
         img_bytes = base64.b64decode(encoded)
@@ -656,8 +664,29 @@ def get_model_ouput(n_int, img_url):
     State("roi-coords-store", "data"),
 )
 def handle_segmentor_output(out, coords):
-    # dash in callbacks converts 2d numpy array out to a 2d list
+    # --- Mitigation Strategy ---
+    # 1. Check if 'out' is None or an empty/invalid value from the model output
+    #    (model_output.data will be the return value of get_model_ouput)
+    if out is None or (isinstance(out, list) and not out):
+        # If no valid model output, prevent further updates or return default/empty states
+        print("Model output is not yet available or is invalid. Preventing update.")
+        # dash.no_update can be used for individual outputs
+        # For multiple outputs, returning defaults or raising PreventUpdate is cleaner.
+        return dash.no_update, dash.no_update # If you don't want to change anything
+
+        # OR, if you want to display an empty/default graph immediately:
+        # return build_bar_figure(values=[0,0]), [] # Return default figure and empty queues
+
+    # At this point, 'out' should be a list (from .tolist() in get_model_ouput)
+    # Convert it back to a NumPy array for processing
     out = np.asarray(out)
+
+    # 2. Ensure 'out' is a 2-dimensional array before attempting to slice it.
+    if out.ndim != 2:
+        print(f"Warning: 'out' is not 2-dimensional (shape: {out.shape}). Preventing update.")
+        return dash.no_update, dash.no_update # Or return default figure
+
+    # --- Your existing ROI and level calculation logic starts here ---
     if coords and len(coords) == 2 and coords[0] and coords[1]:
         c0 = coords[0]
         x1, y1 = c0["x"], c0["y"]
@@ -666,27 +695,58 @@ def handle_segmentor_output(out, coords):
         x1, x2, y1, y2 = int(x1), int(x2), int(y1), int(y2)
         x, y, w, h = min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1)
     else:
-        x, y, w, h = 0, 0, out.shape[0], out.shape[1]
+        # Default ROI if coordinates are not set or partially set
+        # Ensure default ROI covers the whole image if no coords provided
+        x, y, w, h = 0, 0, out.shape[1], out.shape[0] # out.shape is (H, W)
 
+    # 3. Add checks for valid ROI dimensions after calculation and before slicing
+    #    This prevents errors if ROI coordinates result in zero or negative dimensions
+    #    Also clip to ensure ROI is within image bounds
+    x = np.clip(x, 0, out.shape[1] -1)
+    y = np.clip(y, 0, out.shape[0] -1)
+    # Ensure w and h are positive and don't extend beyond image boundaries
+    w = np.clip(w, 1, out.shape[1] - x) # min width 1
+    h = np.clip(h, 1, out.shape[0] - y) # min height 1
+
+    # If, after clipping, w or h become 0 (e.g., if initial x/y were out of bounds)
+    if w <= 0 or h <= 0:
+        print(f"Invalid ROI dimensions after clipping: x={x}, y={y}, w={w}, h={h}. Preventing update.")
+        return dash.no_update, dash.no_update
+
+
+    # Only proceed if the ROI is valid
+    # No need for this `if w > 0 and h > 0` check here if you clipped w,h to min 1 and handled above.
+    # The clipping ensures w and h are at least 1, and x, y are within bounds for slicing.
     predicted_level, lvl_top, lvl_bot = get_level(out[y : y + h, x : x + w])
-    
+
     predicted_level = (h - predicted_level) * 100 / h
     print(f"Predicted level: {predicted_level}, Top: {lvl_top}, Bottom: {lvl_bot}")
 
     confidence = get_conf(out[y : y + h, x : x + w])
-    lvl_top = np.clip(lvl_top, y, y + h)
+    lvl_top = np.clip(lvl_top, y, y + h) # Clip within ROI for confidence calculation
     lvl_bot = np.clip(lvl_bot, y, y + h)
-    confidence = 1 / (1e-5 + np.mean(confidence[lvl_top:lvl_bot]))
-    print(f"Confidence: {confidence}")
-    # clip with softmax
-    confidence = np.clip(confidence, 0, 100)
+    
+    # Handle the case where lvl_top >= lvl_bot (empty slice for mean)
+    if lvl_top >= lvl_bot:
+        print("Warning: Level top is greater than or equal to level bottom for confidence calculation. Setting confidence to 0.")
+        confidence = 0.0
+    else:
+        # Ensure no division by zero for mean if slice is empty (though clipping should prevent this)
+        confidence_slice = confidence[lvl_top:lvl_bot]
+        if confidence_slice.size == 0:
+            print("Warning: Confidence slice is empty. Setting confidence to 0.")
+            confidence = 0.0
+        else:
+            confidence = 1 / (1e-5 + np.mean(confidence_slice))
+
+    confidence = np.clip(confidence, 0, 100) # clip with softmax (as per your comment, though softmax is usually before this)
+
 
     level_queue.append(predicted_level)
     qual_queue.append(confidence)
     date_queue.append(datetime.datetime.now())
 
     return build_bar_figure([predicted_level, confidence]), []
-
 
 # NOTE: need threaded=True as getting the model output is time intensive
 # to keep the app reactive enough, other callbacks should still handle events
