@@ -142,14 +142,11 @@ def build_bar_figure(values=None):
     Build the bar chart figure for the dashboard.
     """
     labels = ["Oil Sand Level", "Confidence Level"]
-    values = [45, 88] if not values else values
-    error_y_data = [None,None]
-    error_data = values[2]
+    values = [45, 88, 10, 15] if not values else values
 
-    error_y_data[0] = dict(
+    error_y_data = dict(
             type='data',
-            array=error_data[0],      # Error value for the top side
-            arrayminus=error_data[1], # Error value for the bottom side
+            array = [values[3] - values[2]],  # Example error values for each bar
             visible=True,
             color='red',            # Color of the error bar
             thickness=1.5,            # Thickness of the error bar line
@@ -167,7 +164,7 @@ def build_bar_figure(values=None):
                     size=16
                 ),
                 marker_color=['#1f77b4', '#ff7f0e'],
-                error_y= error_y_data[0] # Apply error_y to the first bar (Level)
+                error_y= error_y_data # Apply error_y to the first bar (Level)
             )
         ]
     )
@@ -736,9 +733,10 @@ def handle_segmentor_output(out, coords):
     y_top = max(0, y_top)  # Ensure y_top is not negative
     y_bot = min(h, y_bot)  # Ensure y_bot does not exceed height
 
-    y_top = int((h - predicted_level) * 100 / h)
-    y_bot = int((h - predicted_level) * 100 / h)
-    print(f"Predicted level: {predicted_level}, Top: {lvl_top}, Bottom: {lvl_bot}")
+    y_top = int((h - y_top) * 100 / h)
+    y_bot = int((h - y_bot) * 100 / h)
+    error = abs(y_top - y_bot)
+    print(f"Predicted level: {predicted_level}, Top: {y_top}, Bottom: {y_bot}, Error: {error}")
 
     confidence = get_conf(out[y : y + h, x : x + w])
     lvl_top = np.clip(lvl_top, y, y + h) # Clip within ROI for confidence calculation
@@ -764,7 +762,7 @@ def handle_segmentor_output(out, coords):
     qual_queue.append(confidence)
     date_queue.append(datetime.datetime.now())
 
-    return build_bar_figure([predicted_level, confidence]), []
+    return build_bar_figure([predicted_level, confidence, y_top  ,y_bot]), []
 
 # NOTE: need threaded=True as getting the model output is time intensive
 # to keep the app reactive enough, other callbacks should still handle events

@@ -51,26 +51,32 @@ def get_level(roi_img, prev_lvl=None):
     img_outline = np.copy(img_8u)
     img_outline = cv2.drawContours(img_outline, [contours[0]], -1, (255, 0, 0), 2)
 
-    lvl_top = np.nonzero(img_outline)
-    contour_points = lvl_top
-    lower_q = len(lvl_top[0]) // 5
+    contour_points = np.nonzero(img_outline)
+    lower_q = len(contour_points[0]) // 5
     lvl_bot = int(
-        np.median(lvl_top[0][lower_q : min(2 * lower_q, lvl_top[0].shape[0])])
+        np.median(contour_points[0][lower_q : min(2 * lower_q, len(contour_points[0]))])
     )
-    lvl_top = int(np.median(lvl_top[0][:lower_q]))
+    lvl_top = int(np.median(contour_points[0][:lower_q]))
     level = (lvl_top + lvl_bot) / 2
+    
+    # Method 2: std of the first 2 * lower_q points
+    # This is to ensure that we are not taking the std of the whole contour
+    std2 = np.std(contour_points[0][: 2 * lower_q]) 
 
-    std = np.std(contour_points[0]) # get the standard deviation of the contour points y coordinates
-    # get the y coordinate for top
+    y_top2 = int(np.mean(contour_points[0][: 2 * lower_q]) + std2)
+    y_bot2 = int(np.mean(contour_points[0][: 2 * lower_q]) - std2)
+    
+    # Method 1: std of the whole thing
+    # std = np.std(contour_points[0]) # get the standard deviation of the contour points y coordinates
 
-    y_top = int(np.mean(contour_points[0])) + std
+    # y_top = int(np.mean(contour_points[0])) + std / 2
 
-    y_bot = int(np.mean(contour_points[0])) - std
+    # y_bot = int(np.mean(contour_points[0])) - std / 2
 
     if prev_lvl is not None:
         level = 1.0 * level + 0.0 * prev_lvl
 
-    return level, lvl_top, lvl_bot, y_top, y_bot
+    return level, lvl_top, lvl_bot, y_top2, y_bot2
 
 
 def get_conf(out: cv2.Mat):
