@@ -141,25 +141,37 @@ def build_bar_figure(values=None):
     """
     Build the bar chart figure for the dashboard.
     """
-    labels = ["Level", "Confidence"]
+    labels = ["Oil Sand Level", "Confidence Level"]
     values = [45, 88] if not values else values
+    error_y_data = [None,None]
+    error_data = values[2]
 
+    error_y_data[0] = dict(
+            type='data',
+            array=error_data[0],      # Error value for the top side
+            arrayminus=error_data[1], # Error value for the bottom side
+            visible=True,
+            color='red',            # Color of the error bar
+            thickness=1.5,            # Thickness of the error bar line
+            width=3                   # Width of the caps on the error bar
+        )
     fig = go.Figure(
         data=[
             go.Bar(
                 x=labels,
                 y=values,
-                text=[f"{v:.1f}%" for v in values], # Format text with one decimal place and %
-                textposition="outside", # Position text outside (above) the bar
-                # Optional: customize text appearance
+                text=[f"{v:.1f}%" for v in values],
+                textposition="outside",
                 textfont=dict(
-                    color="white", # Text color for dark theme
-                    size=16 # Adjust text size as needed
+                    color="white",
+                    size=16
                 ),
-                marker_color=['#1f77b4', '#ff7f0e'] 
+                marker_color=['#1f77b4', '#ff7f0e'],
+                error_y= error_y_data[0] # Apply error_y to the first bar (Level)
             )
         ]
     )
+
     fig.update_layout(
         yaxis=dict(
             range=[0, 100],
@@ -171,6 +183,7 @@ def build_bar_figure(values=None):
         font=dict(size=18),
     )
     return fig
+
 
 
 def build_barchart_panel():
@@ -717,9 +730,14 @@ def handle_segmentor_output(out, coords):
     # Only proceed if the ROI is valid
     # No need for this `if w > 0 and h > 0` check here if you clipped w,h to min 1 and handled above.
     # The clipping ensures w and h are at least 1, and x, y are within bounds for slicing.
-    predicted_level, lvl_top, lvl_bot = get_level(out[y : y + h, x : x + w])
+    predicted_level, lvl_top, lvl_bot, y_top, y_bot = get_level(out[y : y + h, x : x + w])
 
     predicted_level = (h - predicted_level) * 100 / h
+    y_top = max(0, y_top)  # Ensure y_top is not negative
+    y_bot = min(h, y_bot)  # Ensure y_bot does not exceed height
+
+    y_top = int((h - predicted_level) * 100 / h)
+    y_bot = int((h - predicted_level) * 100 / h)
     print(f"Predicted level: {predicted_level}, Top: {lvl_top}, Bottom: {lvl_bot}")
 
     confidence = get_conf(out[y : y + h, x : x + w])
