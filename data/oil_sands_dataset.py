@@ -20,7 +20,7 @@ import torch
 
 
 class Dataset(VisionDataset):
-        """
+    """
     Custom PyTorch Dataset for loading images and corresponding segmentation masks.
 
     Args:

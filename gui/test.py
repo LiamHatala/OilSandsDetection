@@ -21,13 +21,14 @@ from torchvision import transforms
 from torch.serialization import add_safe_globals
 from PIL import Image
 from torch._dynamo.eval_frame import OptimizedModule
+from torchvision.models.segmentation import deeplabv3_resnet101, DeepLabV3_ResNet101_Weights
 
 from visualize import get_level, get_conf
 
 app = dash.Dash(
     __name__,
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-    # suppress_callback_exceptions=True
+    suppress_callback_exceptions=True # allows for dynamic callbacks to be added later
 )
 app.title = "Oilsands Level Tracker"
 server = app.server
@@ -47,9 +48,14 @@ suffix_ooc_n = "_OOC_number"
 suffix_ooc_g = "_OOC_graph"
 suffix_indicator = "_indicator"
 
+weights = DeepLabV3_ResNet101_Weights.COCO_WITH_VOC_LABELS_V1
 
-model = None
-device = "cuda"
+model = deeplabv3_resnet101(weights=weights)
+model.eval()
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
+
 transform = transforms.Compose(
             [
         transforms.Resize((720, 1280)),
@@ -643,6 +649,7 @@ def on_click_bot_right(n_clicks):
 )
 def get_model_ouput(n_int, img_url):
     model, transform = load_model_if_not_loaded()
+    print(f"[get_model_output] img_url: {img_url[:50]}...")  # just to confirm it's not empty
     if img_url:
         _, encoded = img_url.split(",", 1)
         img_bytes = base64.b64decode(encoded)
@@ -664,6 +671,7 @@ def get_model_ouput(n_int, img_url):
     State("roi-coords-store", "data"),
 )
 def handle_segmentor_output(out, coords):
+    print(f"[handle_segmentor_output] out is None? {out is None} | type: {type(out)}")
     # --- Mitigation Strategy ---
     # 1. Check if 'out' is None or an empty/invalid value from the model output
     #    (model_output.data will be the return value of get_model_ouput)
