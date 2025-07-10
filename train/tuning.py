@@ -2,11 +2,13 @@ import optuna
 from torch.utils.data import DataLoader
 from torchvision import models, transforms
 from transforms.custom_transforms import AddNoise, CropROI_Tensor
+from torcheval.metrics.functional import binary_f1_score, binary_auroc
 from data.oil_sands_dataset import Dataset
 from torch.optim import Adam
 from metrics.custom_metrics import Calculate_IoU
 from models.model import createDeepLabv3
 import torch
+import csv
 from torch.optim.lr_scheduler import CosineAnnealingLR
  # Add noise as a custom transformation
 
