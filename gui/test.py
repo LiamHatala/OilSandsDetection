@@ -727,16 +727,17 @@ def handle_segmentor_output(out, coords):
     # Only proceed if the ROI is valid
     # No need for this `if w > 0 and h > 0` check here if you clipped w,h to min 1 and handled above.
     # The clipping ensures w and h are at least 1, and x, y are within bounds for slicing.
-    predicted_level, lvl_top, lvl_bot, y_top, y_bot = get_level(out[y : y + h, x : x + w])
+    predicted_level,level, lvl_top, lvl_bot, y_top, y_bot = get_level(out[y : y + h, x : x + w])
 
     predicted_level = (h - predicted_level) * 100 / h
+    level = (h - level) * 100 / h
     y_top = max(0, y_top)  # Ensure y_top is not negative
     y_bot = min(h, y_bot)  # Ensure y_bot does not exceed height
 
     y_top = int((h - y_top) * 100 / h)
     y_bot = int((h - y_bot) * 100 / h)
     error = abs(y_top - y_bot)
-    print(f"Predicted level: {predicted_level}, Top: {y_top}, Bottom: {y_bot}, Error: {error}")
+    print(f"Predicted level: {predicted_level},Level with mean: {level} Top: {y_top}, Bottom: {y_bot}, Error: {error}")
 
     confidence = get_conf(out[y : y + h, x : x + w])
     lvl_top = np.clip(lvl_top, y, y + h) # Clip within ROI for confidence calculation

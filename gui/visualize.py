@@ -62,9 +62,10 @@ def get_level(roi_img, prev_lvl=None):
     # Method 2: std of the first 2 * lower_q points
     # This is to ensure that we are not taking the std of the whole contour
     std2 = np.std(contour_points[0][: 2 * lower_q]) 
-
-    y_top2 = int(np.mean(contour_points[0][: 2 * lower_q]) + std2)
-    y_bot2 = int(np.mean(contour_points[0][: 2 * lower_q]) - std2)
+    conf = 1 / (1e-5 + std2)
+    print(f"confidence = {conf}")
+    y_top2 = int(np.mean(contour_points[0][: 2 * lower_q]) + std2/2)
+    y_bot2 = int(np.mean(contour_points[0][: 2 * lower_q]) - std2/2)
     
     # Method 1: std of the whole thing
     # std = np.std(contour_points[0]) # get the standard deviation of the contour points y coordinates
@@ -75,8 +76,9 @@ def get_level(roi_img, prev_lvl=None):
 
     if prev_lvl is not None:
         level = 1.0 * level + 0.0 * prev_lvl
+    mean = np.mean(contour_points[0][: 2 * lower_q])
 
-    return level, lvl_top, lvl_bot, y_top2, y_bot2
+    return level,mean, lvl_top, lvl_bot, y_top2, y_bot2
 
 
 def get_conf(out: cv2.Mat):

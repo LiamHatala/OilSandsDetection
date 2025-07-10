@@ -28,7 +28,7 @@ class AddNoise(object):
         self.noise_std = noise_std
     
     def __call__(self, tensor):
-         """
+        """
         Apply Gaussian noise to the input tensor if noise_std > 0.
 
         Args:
