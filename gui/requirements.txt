@@ -1,0 +1,19 @@
+# requirements.txt
+
+# Dash and UI components
+dash
+dash-canvas
+dash-mantine-components
+dash-extensions
+plotly
+
+# Data and image processing
+pandas
+opencv-python
+numpy
+pillow
+
+# PyTorch (with CUDA 12.8 support)
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch
+torchvision
