@@ -433,8 +433,10 @@ app.layout = dmc.MantineProvider(
             dcc.Store(id="roi-selection-mode", storage_type="local"),
             dcc.Store(id="img-url-store"),
             dcc.Store(id="model_output"),
-            dcc.Store(id="plot-queues")
+            dcc.Store(id="plot-queues"),
             # generate_modal(),
+            html.Img(id="point-canvas", style={"display": "none"}),
+            dcc.Graph(id="bar-chart-live-graph", style={"display": "none"}),
         ],
     )
 )
@@ -659,8 +661,11 @@ def on_click_bot_right(n_clicks):
 )
 def get_model_ouput(n_int, img_url):
     model, transform = load_model_if_not_loaded()
+    if not img_url:
+        print("[get_model_output] img_url is None or empty.")
+        return None  # or dash.no_update if you want to skip updating
     print(f"[get_model_output] img_url: {img_url[:50]}...")  # just to confirm it's not empty
-    if img_url:
+    try:
         _, encoded = img_url.split(",", 1)
         img_bytes = base64.b64decode(encoded)
         img = BytesIO(img_bytes)
@@ -669,10 +674,12 @@ def get_model_ouput(n_int, img_url):
         img = img.to(device)
         with torch.no_grad():
             outputs = model(img)
-        output = output = outputs["out"].squeeze(0)
+        output = outputs["out"].squeeze(0)
         out_img = output[0].cpu().numpy()
         return out_img
-
+    except Exception as e:
+        print(f"[get_model_output] Error processing image: {e}")
+        return None  # or dash.no_update
 
 @app.callback(
     Output("bar-chart-live-graph", "figure"),
