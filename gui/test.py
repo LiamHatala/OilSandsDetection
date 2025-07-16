@@ -435,7 +435,7 @@ app.layout = dmc.MantineProvider(
             dcc.Store(id="model_output"),
             dcc.Store(id="plot-queues"),
             # generate_modal(),
-            html.Img(id="point-canvas", style={"display": "none"}),
+            html.Img(id="point-canvas", style={"display": "none"}), 
             dcc.Graph(id="bar-chart-live-graph", style={"display": "none"}),
         ],
     )

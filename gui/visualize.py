@@ -27,6 +27,11 @@ def get_pretrained_model(mdl_pth: str):
     model = model.to(device)
     return model
 
+print("CUDA available:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("Device:", torch.cuda.get_device_name(0))
+else:
+    print("No CUDA device detected.")
 
 def show_model_output_video(model_path, video_path):
     """Generate video of model prediction"""
